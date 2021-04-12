@@ -11,6 +11,7 @@ def start_worker(n):
     #aux = requests.get("http://localhost:8000/Documents/SD/Pract-1/fitxer1.txt")
     #print(aux.text)
 
+
 class ServerMethods:
 
 

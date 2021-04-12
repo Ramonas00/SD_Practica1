@@ -1,6 +1,7 @@
 import xmlrpc.client
 import sys
 
+
 proxy = xmlrpc.client.ServerProxy('http://localhost:9000')
 #print(proxy.list_contents(sys.argv[1]))
 if (sys.argv[1] == "worker"):
