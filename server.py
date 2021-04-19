@@ -1,4 +1,5 @@
 from xmlrpc.server import SimpleXMLRPCServer
+#import asyncio
 import logging
 import requests
 import simplejson as json
@@ -20,7 +21,7 @@ def start_worker(n):
     packed = r.blpop(['queue:email'], 2)
     while True:
         while packed is None:
-            asyncio.sleep(1)
+            #asyncio.sleep(1)
             packed = r.blpop(['queue:email'], 2)
         print(packed)
 
@@ -82,7 +83,11 @@ class ServerMethods:
 
 
     def list_worker(self):
-        return WORKERS
+        ABCD = ''
+        for worker in WORKERS:
+            ABCD += str(WORKERS[worker]) + "\n"
+
+        return ABCD
 
 
     def jobRun(opcio, urls):
