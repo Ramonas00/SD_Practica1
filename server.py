@@ -18,19 +18,31 @@ r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
 
 
 def start_worker(n):
-    packed = r.blpop(['queue:email'], 2)
-    while True:
-        while packed is None:
-            #asyncio.sleep(1)
-            packed = r.blpop(['queue:email'], 2)
-        print(packed)
 
+    while True:
+        packed = r.blpop('queue:email')
         to_send = json.loads(packed[1])
         operacio = to_send["Operacio"]
+
+        if operacio == "suma":
+            if to_send["Opcio"] == "wordcount":
+                auxSuma = 0
+                for x in range(to_send["Lenght"]):
+                    packed = r.blpop('suma')
+                    to_send = json.loads(packed[1])
+
+            elif to_send["Opcio"] == "countwords":
+                auxSuma = 0
+                for x in range(to_send["Lenght"]):
+                    packed = r.blpop('suma')
+                    to_send = json.loads(packed[1])
+                    auxSuma += to_send
+                
+
         line = requests.get(to_send["URL"]).text
 
         if operacio == "wordcount":
-            wordCount = len(linespilt())
+            d = len(line.split())
         elif operacio == "countwords":
             d = dict()
 
@@ -56,6 +68,8 @@ def start_worker(n):
                 else:
                     # Add the word to dictionary with count 1
                     d[word] = 1
+
+        r.rpush(to_send["JOBID"], json.dumps(d))
     
     return True
 
@@ -75,10 +89,11 @@ class ServerMethods:
 
 
     def delete_worker(self, num):
+        num = int(num) - 1
         if not WORKERS[num]:
             return -1
         
-        WORKERS[num].join()
+        WORKERS[num].terminate()
         return True
 
 
@@ -90,13 +105,17 @@ class ServerMethods:
         return ABCD
 
 
-    def jobRun(opcio, urls):
+    def jobRun(self, opcio, urls):
         global JOBID
 
         opcio = opcio[4:]
+        print (urls)
+        urls = urls[1:-1]
+        print (urls)
         urls = urls.split(",")
-        for x in range(len(urls)):
-            url = urls[x]
+        
+        if len(urls) == 1:
+            url = urls[0]
             data = {
                 'JOBID': JOBID,
                 'Operacio': opcio,
@@ -104,9 +123,31 @@ class ServerMethods:
             }
             # ENVIAR A REDIS (JOBID, opcio, url)
             r.rpush('queue:email', json.dumps(data))
+        else:
+            for x in range(len(urls)):
+                url = urls[x]
+                data = {
+                    'JOBID': 'suma',
+                    'Operacio': opcio,
+                    'URL': url
+                }
+                # ENVIAR A REDIS (JOBID, opcio, url)
+                r.rpush('queue:email', json.dumps(data))
 
+            data = {
+                'JOBID': JOBID,
+                'Operacio': 'suma',
+                'Opcio': opcio,
+                'Lenght': len(urls)
+            }
+            # ENVIAR A REDIS (JOBID, opcio, url)
+            r.rpush('queue:email', json.dumps(data))
+
+
+        packed = r.blpop(JOBID)
+        to_send = json.loads(packed[1])
         JOBID += 1
-        return True
+        return to_send
 
 if __name__ == '__main__':
     # Set up logging
