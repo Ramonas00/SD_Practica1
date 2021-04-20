@@ -1,5 +1,4 @@
 from xmlrpc.server import SimpleXMLRPCServer
-#import asyncio
 import logging
 import requests
 import simplejson as json
@@ -15,6 +14,7 @@ REDIS_PORT = 6379
 REDIS_HOST = '127.0.0.1'
 
 r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
+r.flushdb()
 
 
 def start_worker(n):
@@ -23,23 +23,28 @@ def start_worker(n):
         packed = r.blpop('queue:email')
         to_send = json.loads(packed[1])
         operacio = to_send["Operacio"]
+        jobID = to_send["JOBID"]
 
         if operacio == "suma":
-            if to_send["Opcio"] == "wordcount":
-                auxSuma = 0
+            if to_send["Opcio"] == "countwords":
+                d = dict()
                 for x in range(to_send["Lenght"]):
                     packed = r.blpop('suma')
                     to_send = json.loads(packed[1])
-
-            elif to_send["Opcio"] == "countwords":
-                auxSuma = 0
+                    for key in list(to_send.keys()):
+                        if d.get(key) is None:
+                            d[key] = to_send[key]
+                        else:
+                            d[key] += to_send[key]
+            elif to_send["Opcio"] == "wordcount":
+                d = 0
                 for x in range(to_send["Lenght"]):
                     packed = r.blpop('suma')
                     to_send = json.loads(packed[1])
-                    auxSuma += to_send
-                
+                    d += int(to_send)
 
-        line = requests.get(to_send["URL"]).text
+        else:
+            line = requests.get(to_send["URL"]).text
 
         if operacio == "wordcount":
             d = len(line.split())
@@ -69,7 +74,7 @@ def start_worker(n):
                     # Add the word to dictionary with count 1
                     d[word] = 1
 
-        r.rpush(to_send["JOBID"], json.dumps(d))
+        r.rpush(jobID, json.dumps(d))
     
     return True
 
@@ -109,9 +114,7 @@ class ServerMethods:
         global JOBID
 
         opcio = opcio[4:]
-        print (urls)
         urls = urls[1:-1]
-        print (urls)
         urls = urls.split(",")
         
         if len(urls) == 1:
